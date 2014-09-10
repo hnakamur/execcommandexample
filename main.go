@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -12,30 +13,43 @@ import (
 
 func main() {
 	cmd := exec.Command("./a.sh")
-	err := runCommand(cmd)
+	stdout, stderr, err := runCommand(cmd)
 	if err != nil {
 		log.Fatal(err)
 	}
+	fmt.Printf("stdout result:%s\n", stdout)
+	fmt.Printf("stderr result:%s\n", stderr)
 }
 
-func runCommand(cmd *exec.Cmd) error {
-	stdout, err := cmd.StdoutPipe()
+func runCommand(cmd *exec.Cmd) (stdout, stderr string, err error) {
+	outReader, err := cmd.StdoutPipe()
 	if err != nil {
-		return err
+		return
 	}
-	stderr, err := cmd.StderrPipe()
+	errReader, err := cmd.StderrPipe()
 	if err != nil {
-		return err
+		return
 	}
 
-	if err := cmd.Start(); err != nil {
-		return err
+	var bufout, buferr bytes.Buffer
+	outReader2 := io.TeeReader(outReader, &bufout)
+	errReader2 := io.TeeReader(errReader, &buferr)
+
+	if err = cmd.Start(); err != nil {
+		return
 	}
 
-	go printOutputWithHeader(stdout, ansi.Color("stdout:", "green"))
-	go printOutputWithHeader(stderr, ansi.Color("stderr:", "red"))
+	go printOutputWithHeader(outReader2, ansi.Color("stdout:", "green"))
+	go printOutputWithHeader(errReader2, ansi.Color("stderr:", "red"))
 
-	return cmd.Wait()
+	err = cmd.Wait()
+	if err != nil {
+		return
+	}
+
+	stdout = bufout.String()
+	stderr = buferr.String()
+	return
 }
 
 func printOutputWithHeader(r io.Reader, header string) {
