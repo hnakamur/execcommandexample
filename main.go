@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"log"
 	"os/exec"
 
@@ -31,21 +32,15 @@ func runCommand(cmd *exec.Cmd) error {
 		return err
 	}
 
-	go func() {
-		stdoutHeader := ansi.Color("stdout:", "green")
-		stdoutScanner := bufio.NewScanner(stdout)
-		for stdoutScanner.Scan() {
-			fmt.Printf("%s%s\n", stdoutHeader, stdoutScanner.Text())
-		}
-	}()
-
-	go func() {
-		stderrHeader := ansi.Color("stderr:", "red")
-		stderrScanner := bufio.NewScanner(stderr)
-		for stderrScanner.Scan() {
-			fmt.Printf("%s%s\n", stderrHeader, stderrScanner.Text())
-		}
-	}()
+	go printOutputWithHeader(stdout, ansi.Color("stdout:", "green"))
+	go printOutputWithHeader(stderr, ansi.Color("stderr:", "red"))
 
 	return cmd.Wait()
+}
+
+func printOutputWithHeader(r io.Reader, header string) {
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
+		fmt.Printf("%s%s\n", header, scanner.Text())
+	}
 }
