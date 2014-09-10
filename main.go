@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -18,8 +19,11 @@ const (
 )
 
 func main() {
+	var verbose = flag.Bool("v", false, "get verbose output")
+	flag.Parse()
+
 	cmd := exec.Command("./a.sh")
-	stdout, stderr, exitCode, err := runCommand(cmd)
+	stdout, stderr, exitCode, err := runCommand(cmd, *verbose)
 	fmt.Printf("stdout result:%s\n", ansi.Color(stdout, stdoutColor))
 	fmt.Printf("stderr result:%s\n", ansi.Color(stderr, stderrColor))
 	fmt.Printf("exitCode:%d\n", exitCode)
@@ -28,7 +32,7 @@ func main() {
 	}
 }
 
-func runCommand(cmd *exec.Cmd) (stdout, stderr string, exitCode int, err error) {
+func runCommand(cmd *exec.Cmd, verbose bool) (stdout, stderr string, exitCode int, err error) {
 	outReader, err := cmd.StdoutPipe()
 	if err != nil {
 		return
@@ -46,8 +50,8 @@ func runCommand(cmd *exec.Cmd) (stdout, stderr string, exitCode int, err error) 
 		return
 	}
 
-	go printOutputWithHeader("stdout:", stdoutColor, outReader2)
-	go printOutputWithHeader("stderr:", stderrColor, errReader2)
+	go printOutputWithHeader("stdout:", stdoutColor, outReader2, verbose)
+	go printOutputWithHeader("stderr:", stderrColor, errReader2, verbose)
 
 	err = cmd.Wait()
 
@@ -65,9 +69,11 @@ func runCommand(cmd *exec.Cmd) (stdout, stderr string, exitCode int, err error) 
 	return
 }
 
-func printOutputWithHeader(header, color string, r io.Reader) {
+func printOutputWithHeader(header, color string, r io.Reader, verbose bool) {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
-		fmt.Printf("%s%s\n", header, ansi.Color(scanner.Text(), color))
+		if verbose {
+			fmt.Printf("%s%s\n", header, ansi.Color(scanner.Text(), color))
+		}
 	}
 }
