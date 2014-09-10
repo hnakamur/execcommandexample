@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"os/exec"
+	"syscall"
 
 	"github.com/mgutz/ansi"
 )
@@ -18,15 +19,16 @@ const (
 
 func main() {
 	cmd := exec.Command("./a.sh")
-	stdout, stderr, err := runCommand(cmd)
+	stdout, stderr, exitCode, err := runCommand(cmd)
+	fmt.Printf("stdout result:%s\n", ansi.Color(stdout, stdoutColor))
+	fmt.Printf("stderr result:%s\n", ansi.Color(stderr, stderrColor))
+	fmt.Printf("exitCode:%d\n", exitCode)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("stdout result:%s\n", ansi.Color(stdout, stdoutColor))
-	fmt.Printf("stderr result:%s\n", ansi.Color(stderr, stderrColor))
 }
 
-func runCommand(cmd *exec.Cmd) (stdout, stderr string, err error) {
+func runCommand(cmd *exec.Cmd) (stdout, stderr string, exitCode int, err error) {
 	outReader, err := cmd.StdoutPipe()
 	if err != nil {
 		return
@@ -48,12 +50,18 @@ func runCommand(cmd *exec.Cmd) (stdout, stderr string, err error) {
 	go printOutputWithHeader("stderr:", stderrColor, errReader2)
 
 	err = cmd.Wait()
-	if err != nil {
-		return
-	}
 
 	stdout = bufout.String()
 	stderr = buferr.String()
+
+	if err != nil {
+		if err2, ok := err.(*exec.ExitError); ok {
+			if s, ok := err2.Sys().(syscall.WaitStatus); ok {
+				err = nil
+				exitCode = s.ExitStatus()
+			}
+		}
+	}
 	return
 }
 
