@@ -11,14 +11,19 @@ import (
 	"github.com/mgutz/ansi"
 )
 
+const (
+	stdoutColor = "green"
+	stderrColor = "red"
+)
+
 func main() {
 	cmd := exec.Command("./a.sh")
 	stdout, stderr, err := runCommand(cmd)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("stdout result:%s\n", stdout)
-	fmt.Printf("stderr result:%s\n", stderr)
+	fmt.Printf("stdout result:%s\n", ansi.Color(stdout, stdoutColor))
+	fmt.Printf("stderr result:%s\n", ansi.Color(stderr, stderrColor))
 }
 
 func runCommand(cmd *exec.Cmd) (stdout, stderr string, err error) {
@@ -39,8 +44,8 @@ func runCommand(cmd *exec.Cmd) (stdout, stderr string, err error) {
 		return
 	}
 
-	go printOutputWithHeader(outReader2, ansi.Color("stdout:", "green"))
-	go printOutputWithHeader(errReader2, ansi.Color("stderr:", "red"))
+	go printOutputWithHeader("stdout:", stdoutColor, outReader2)
+	go printOutputWithHeader("stderr:", stderrColor, errReader2)
 
 	err = cmd.Wait()
 	if err != nil {
@@ -52,9 +57,9 @@ func runCommand(cmd *exec.Cmd) (stdout, stderr string, err error) {
 	return
 }
 
-func printOutputWithHeader(r io.Reader, header string) {
+func printOutputWithHeader(header, color string, r io.Reader) {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
-		fmt.Printf("%s%s\n", header, scanner.Text())
+		fmt.Printf("%s%s\n", header, ansi.Color(scanner.Text(), color))
 	}
 }
